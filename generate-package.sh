@@ -4,6 +4,7 @@
 INPUT_FILE="changed-files.txt"
 PACKAGE_XML="package.xml"
 BASE_XML="base-package.xml"
+API_VERSION= "60.0"
 
 # Create base package.xml with dynamic API version
 cat <<EOF > "$BASE_XML"
