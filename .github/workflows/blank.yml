@@ -1,0 +1,50 @@
+name: Multi-Stage Salesforce Deployment with Rollback
+on:
+  push:
+    branches:
+      - qa
+      - uat
+      - preprod
+
+env:
+  API_VERSION: '60.0'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    container:
+      image: salesforce/cli:latest-full
+
+    steps:
+      - name: ⬇️ Checkout Code
+        uses: actions/checkout@v3
+
+      - name: 🔐 Authenticate to Salesforce Org
+        run: |
+          if [[ "${GITHUB_REF##*/}" == "qa" ]]; then
+            echo "${{ secrets.SFDX_AUTH_URL_QA }}" > auth-url.txt
+          elif [[ "${GITHUB_REF##*/}" == "uat" ]]; then
+            echo "${{ secrets.SFDX_AUTH_URL_UAT }}" > auth-url.txt
+          elif [[ "${GITHUB_REF##*/}" == "preprod" ]]; then
+            echo "${{ secrets.SFDX_AUTH_URL_PREPROD }}" > auth-url.txt
+          fi
+          sf org login sfdx-url --sfdx-url-file auth-url.txt --alias target-org --set-default
+
+      - name: 🔍 Generate Git Delta
+        run: |
+          git fetch origin
+          git diff --name-status HEAD~1 HEAD > changed-files.txt
+          bash scripts/generate-package.sh
+
+      - name: 📦 Backup Delta from Target Org
+        run: |
+          bash scripts/backup-delta.sh
+
+      - name: ✅ Validate Deployment
+        run: |
+          sf project deploy preview -x package.xml --target-org target-org
+
+      - name: 🚀 Deploy to Target Org
+        if: success()
+        run: |
+          sf project deploy start -x package.xml --target-org target-org
