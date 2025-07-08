@@ -1,23 +1,31 @@
 #!/bin/bash
 
-# Input and output files
+# === CONFIGURATION ===
+API_VERSION="60.0"
+DELTA_DIR="delta"
+PACKAGE_DIR="$DELTA_DIR/package"
+PACKAGE_XML="$PACKAGE_DIR/package.xml"
 INPUT_FILE="changed-files.txt"
-PACKAGE_XML="package.xml"
-BASE_XML="base-package.xml"
-API_VERSION= "60.0"
+ORG_ALIAS="target-org"
 
-# Create base package.xml with dynamic API version
-cat <<EOF > "$BASE_XML"
+# === STEP 1: Clean and prepare delta folder ===
+echo "🧹 Cleaning delta folder..."
+rm -rf "$DELTA_DIR"
+mkdir -p "$PACKAGE_DIR"
+
+# === STEP 2: Get changed files from Git ===
+echo "🔍 Detecting changed files..."
+git diff --name-status HEAD~1 HEAD > "$INPUT_FILE"
+
+# === STEP 3: Create base package.xml ===
+cat <<EOF > "$PACKAGE_XML"
 <?xml version="1.0" encoding="UTF-8"?>
 <Package xmlns="http://soap.sforce.com/2006/04/metadata">
   <version>$API_VERSION</version>
 </Package>
 EOF
 
-# Copy base to working package.xml
-cp "$BASE_XML" "$PACKAGE_XML"
-
-# Metadata folder to type mapping
+# === STEP 4: Metadata folder to type mapping ===
 declare -A metadata_map=(
   ["classes"]="ApexClass"
   ["triggers"]="ApexTrigger"
@@ -33,7 +41,7 @@ declare -A metadata_map=(
   ["lwc"]="LightningComponentBundle"
 )
 
-# Function to get metadata type from file path
+# === STEP 5: Helper functions ===
 get_metadata_type() {
   for key in "${!metadata_map[@]}"; do
     if [[ "$1" == *"/$key/"* ]]; then
@@ -44,24 +52,44 @@ get_metadata_type() {
   echo ""
 }
 
-# Function to extract member name from file path
 get_member_name() {
   filename=$(basename "$1")
   echo "${filename%%.*}"
 }
 
-# Process each file
-while read -r file; do
+copy_metadata_file() {
+  local file="$1"
+  local dest="$PACKAGE_DIR/$file"
+  mkdir -p "$(dirname "$dest")"
+  cp "$file" "$dest"
+
+  # Copy -meta.xml if it exists
+  if [[ -f "$file-meta.xml" ]]; then
+    cp "$file-meta.xml" "$PACKAGE_DIR/$file-meta.xml"
+  fi
+
+  # For aura/lwc, copy entire bundle folder
+  if [[ "$file" == *"/aura/"* || "$file" == *"/lwc/"* ]]; then
+    bundle_dir=$(dirname "$file")
+    cp -r "$bundle_dir" "$PACKAGE_DIR/$(dirname "$file")/../"
+  fi
+}
+
+# === STEP 6: Process changed files ===
+echo "📦 Copying metadata and building package.xml..."
+while read -r status file; do
+  [[ "$status" == "D" ]] && continue  # Skip deleted files
+
   type=$(get_metadata_type "$file")
   member=$(get_member_name "$file")
 
   if [[ -n "$type" && -n "$member" ]]; then
-    # Check if type already exists
+    copy_metadata_file "$file"
+
     exists=$(xmlstarlet sel -N x="http://soap.sforce.com/2006/04/metadata" \
       -t -v "count(/x:Package/x:types[x:name='$type'])" "$PACKAGE_XML")
 
     if [[ "$exists" -eq 0 ]]; then
-      # Add new type node
       xmlstarlet ed --inplace \
         -s "/x:Package" -t elem -n "typesTMP" -v "" \
         -s "/x:Package/typesTMP" -t elem -n "members" -v "$member" \
@@ -69,7 +97,6 @@ while read -r file; do
         -r "/x:Package/typesTMP" -v "types" \
         "$PACKAGE_XML"
     else
-      # Add member to existing type
       xmlstarlet ed --inplace \
         -s "/x:Package/x:types[x:name='$type']" -t elem -n "members" -v "$member" \
         "$PACKAGE_XML"
@@ -77,4 +104,15 @@ while read -r file; do
   fi
 done < "$INPUT_FILE"
 
-echo "✅ package.xml generated successfully!"
+# === STEP 7: Deploy the delta ===
+echo "🚀 Deploying delta to org '$ORG_ALIAS'..."
+sf project deploy start -x "$PACKAGE_XML" --target-org "$ORG_ALIAS"
+
+# === STEP 8: Clean up ===
+if [[ $? -eq 0 ]]; then
+  echo "🧹 Cleaning up delta folder after successful deployment..."
+  rm -rf "$DELTA_DIR"
+  echo "✅ Deployment complete and delta cleaned up."
+else
+  echo "❌ Deployment failed. Delta folder retained for inspection."
+fi
