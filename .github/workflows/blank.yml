@@ -1,4 +1,5 @@
 name: Multi-Stage Salesforce Deployment with Rollback
+
 on:
   push:
     branches:
@@ -30,21 +31,31 @@ jobs:
           fi
           sf org login sfdx-url --sfdx-url-file auth-url.txt --alias target-org --set-default
 
-      - name: 🔍 Generate Git Delta
-        run: |
-          git fetch origin
-          git diff --name-status HEAD~1 HEAD > changed-files.txt
-          bash scripts/generate-package.sh
+      - name: 🔍 Generate Delta Package
+        run: bash scripts/generate-delta.sh
 
-      - name: 📦 Backup Delta from Target Org
+      - name: 🛑 Abort if Delta is Empty
         run: |
-          bash scripts/backup-delta.sh
+          if [[ -z "$(find delta/package -type f -not -name package.xml)" ]]; then
+            echo "⚠️ No metadata changes detected. Skipping deployment."
+            exit 0
+          fi
+
+      - name: 📦 Backup Delta from Org
+        run: bash scripts/backup-delta.sh
 
       - name: ✅ Validate Deployment
         run: |
-          sf project deploy preview -x package.xml --target-org target-org
+          if [[ -d delta/package && -f delta/package/package.xml ]]; then
+            sf project deploy preview \
+              --source-dir delta/package \
+              --manifest delta/package/package.xml \
+              --target-org target-org
+          else
+            echo "❌ Delta folder or package.xml not found. Skipping validation."
+            exit 1
+          fi
 
-      - name: 🚀 Deploy to Target Org
+      - name: 🚀 Deploy Delta
         if: success()
-        run: |
-          sf project deploy start -x package.xml --target-org target-org
+        run: bash scripts/deploy-delta.sh
