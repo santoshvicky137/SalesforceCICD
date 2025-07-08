@@ -1,18 +1,12 @@
 #!/bin/bash
 
-# === CONFIGURATION ===
-PACKAGE_XML="delta/package.xml"
+PACKAGE_XML="delta/package/package.xml"
 BACKUP_DIR="deltabackup"
-ORG_ALIAS="ci-org"  # Change this to your target org alias
+ORG_ALIAS="target-org"
 
-# === VALIDATION ===
-if [[ ! -f "$PACKAGE_XML" ]]; then
-  echo "❌ package.xml not found at $PACKAGE_XML"
-  exit 1
-fi
+[[ ! -f "$PACKAGE_XML" ]] && echo "❌ package.xml not found." && exit 1
 
-# === BACKUP ===
-echo "📦 Backing up metadata from org '$ORG_ALIAS' using $PACKAGE_XML..."
+echo "📦 Backing up metadata from org '$ORG_ALIAS'..."
 mkdir -p "$BACKUP_DIR"
 
 sf project retrieve start \
@@ -20,9 +14,4 @@ sf project retrieve start \
   --manifest "$PACKAGE_XML" \
   --output-dir "$BACKUP_DIR"
 
-if [[ $? -eq 0 ]]; then
-  echo "✅ Backup completed successfully. Files saved to $BACKUP_DIR"
-else
-  echo "❌ Backup failed."
-  exit 1
-fi
+[[ $? -eq 0 ]] && echo "✅ Backup complete." || echo "❌ Backup failed."
