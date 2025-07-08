@@ -46,19 +46,21 @@ jobs:
 
       - name: ✅ Validate Deployment
         run: |
-          if [[ -d delta/package && -f delta/package/package.xml ]]; then
-            sf project deploy preview \
-              --source-dir delta/package \
-              --manifest delta/package/package.xml \
-              --target-org target-org
-          else
-            echo "❌ Delta folder or package.xml not found. Skipping validation."
-            exit 1
-          fi
+          echo "🔎 Validating deployment..."
+          sf project deploy preview \
+            --source-dir delta/package \
+            --manifest delta/package/package.xml \
+            --target-org target-org
 
-      - name: 🚀 Deploy Delta
-        if: success()
-        run: bash scripts/deploy-delta.sh
+      - name: 🚀 Deploy Delta to Org
+        run: |
+          echo "🚀 Deploying delta to org..."
+          sf project deploy start \
+            --source-dir delta/package \
+            --manifest delta/package/package.xml \
+            --target-org target-org \
+            --wait 10 \
+            --verbose
 
       - name: 🧹 Final Cleanup of Delta Folder
         if: success()
