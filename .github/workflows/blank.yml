@@ -59,3 +59,10 @@ jobs:
       - name: 🚀 Deploy Delta
         if: success()
         run: bash scripts/deploy-delta.sh
+
+      - name: 🧹 Final Cleanup of Delta Folder
+        if: success()
+        run: |
+          echo "🧹 Removing delta folder..."
+          rm -rf delta
+          echo "✅ Delta folder cleaned up."
