@@ -1,18 +1,23 @@
 #!/bin/bash
+set -e
+set -o pipefail
 
+# === CONFIGURATION ===
 API_VERSION="60.0"
 DELTA_DIR="delta"
 PACKAGE_DIR="$DELTA_DIR/package"
 PACKAGE_XML="$PACKAGE_DIR/package.xml"
 INPUT_FILE="changed-files.txt"
 
-echo "🔍 Generating Git diff..."
-git diff --name-status HEAD~1 HEAD > "$INPUT_FILE"
+echo "🔍 Detecting changes in 'force-app/'..."
+git diff --name-status HEAD~1 HEAD -- 'force-app/**' > "$INPUT_FILE"
 
-echo "🧹 Preparing delta folder..."
+# === STEP 1: Clean and prepare delta folder ===
+echo "🧹 Cleaning delta folder..."
 rm -rf "$DELTA_DIR"
 mkdir -p "$PACKAGE_DIR"
 
+# === STEP 2: Metadata folder to type mapping ===
 declare -A metadata_map=(
   ["classes"]="ApexClass"
   ["triggers"]="ApexTrigger"
@@ -44,10 +49,18 @@ copy_metadata_file() {
   local dest="$PACKAGE_DIR/$file"
   mkdir -p "$(dirname "$dest")"
   cp "$file" "$dest"
+
+  # Copy -meta.xml if it exists
   [[ -f "$file-meta.xml" ]] && cp "$file-meta.xml" "$PACKAGE_DIR/$file-meta.xml"
-  [[ "$file" == *"/aura/"* || "$file" == *"/lwc/"* ]] && cp -r "$(dirname "$file")" "$PACKAGE_DIR/$(dirname "$file")/../"
+
+  # Copy entire bundle for aura/lwc
+  if [[ "$file" == *"/aura/"* || "$file" == *"/lwc/"* ]]; then
+    bundle_dir=$(dirname "$file")
+    cp -r "$bundle_dir" "$PACKAGE_DIR/$(dirname "$file")/../"
+  fi
 }
 
+# === STEP 3: Create base package.xml ===
 echo "📦 Creating package.xml..."
 cat <<EOF > "$PACKAGE_XML"
 <?xml version="1.0" encoding="UTF-8"?>
@@ -56,11 +69,15 @@ cat <<EOF > "$PACKAGE_XML"
 </Package>
 EOF
 
+# === STEP 4: Process changed files ===
+echo "📁 Processing changed metadata files..."
 while read -r status file; do
   [[ "$status" == "D" ]] && continue
   [[ ! -f "$file" ]] && continue
+
   type=$(get_metadata_type "$file")
   member=$(get_member_name "$file")
+
   [[ -z "$type" || -z "$member" ]] && continue
 
   copy_metadata_file "$file"
@@ -82,4 +99,4 @@ while read -r status file; do
   fi
 done < "$INPUT_FILE"
 
-echo "✅ Delta and package.xml generated."
+echo "✅ Delta package and package.xml generated successfully."

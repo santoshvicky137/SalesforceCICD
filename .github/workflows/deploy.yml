@@ -53,7 +53,7 @@ jobs:
           sf project deploy preview \
             --source-dir delta/package \
             --manifest delta/package/package.xml \
-            --target-org target-org
+            --target-org target-org || { echo "❌ Validation failed. Fix your code and try again."; exit 1; }
 
       - name: 🚀 Deploy Delta to Org
         run: |
@@ -63,7 +63,7 @@ jobs:
             --manifest delta/package/package.xml \
             --target-org target-org \
             --wait 10 \
-            --verbose
+            --verbose || { echo "❌ Deployment failed."; exit 1; }
 
       - name: 🧹 Final Cleanup of Delta Folder
         if: success()

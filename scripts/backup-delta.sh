@@ -1,5 +1,8 @@
 #!/bin/bash
 
+set -e
+set -o pipefail
+
 PACKAGE_XML="delta/package/package.xml"
 BACKUP_DIR="deltabackup"
 ORG_ALIAS="target-org"
