@@ -56,7 +56,7 @@ jobs:
         run: |
           if [[ -z "$(find delta/package -type f -not -name package.xml)" ]]; then
             echo "⚠️ No metadata changes detected. Skipping deployment."
-            exit 0
+            exit 1
           fi
 
       - name: 📦 Backup Delta from Org
