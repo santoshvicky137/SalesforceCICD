@@ -9,6 +9,12 @@ PACKAGE_DIR="$DELTA_DIR/package"
 PACKAGE_XML="$PACKAGE_DIR/package.xml"
 INPUT_FILE="changed-files.txt"
 
+# === SAFETY CHECK ===
+if [ ! -d .git ]; then
+  echo "❌ Not in a Git repository. Cannot detect changes for delta generation."
+  exit 1
+fi
+
 echo "🔍 Detecting changes in 'force-app/'..."
 git diff --name-status HEAD~1 HEAD -- 'force-app/**' > "$INPUT_FILE"
 

@@ -11,7 +11,7 @@ public class BatchDelete implements Database.Batchable<SObject> {
         return Database.getQueryLocator(query);
     }
 
-    // Execute method to process each batch and Added this line for understanding and hello
+    // Execute method to process each batch and Added this line for understanding ****
     public void execute(Database.BatchableContext bc, List<SObject> scope) {
         // Check if the scope is null or empty
         if (scope == null || scope.isEmpty()) {
