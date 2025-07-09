@@ -3,20 +3,25 @@ set -e
 set -o pipefail
 
 # === CONFIGURATION ===
-API_VERSION="60.0"
+API_VERSION="${API_VERSION:-60.0}"
 DELTA_DIR="delta"
 PACKAGE_DIR="$DELTA_DIR/package"
 PACKAGE_XML="$PACKAGE_DIR/package.xml"
 INPUT_FILE="changed-files.txt"
 
 # === SAFETY CHECK ===
-if [ ! -d .git ]; then
+if ! git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
   echo "❌ Not in a Git repository. Cannot detect changes for delta generation."
   exit 1
 fi
 
 echo "🔍 Detecting changes in 'force-app/'..."
-git diff --name-status HEAD~1 HEAD -- 'force-app/**' > "$INPUT_FILE"
+if git rev-parse HEAD~1 > /dev/null 2>&1; then
+  git diff --name-status HEAD~1 HEAD -- 'force-app/**' > "$INPUT_FILE"
+else
+  echo "⚠️ No previous commit found. Using all files in force-app/ as delta."
+  find force-app/ -type f | awk '{print "A\t" $0}' > "$INPUT_FILE"
+fi
 
 # === STEP 1: Clean and prepare delta folder ===
 echo "🧹 Cleaning delta folder..."
