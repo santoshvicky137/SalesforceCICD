@@ -48,7 +48,9 @@ jobs:
           sf org login sfdx-url --sfdx-url-file auth-url.txt --alias target-org --set-default
 
       - name: 🔍 Generate Delta Package
-        run: bash scripts/generate-delta.sh
+        run: |
+            cd $GITHUB_WORKSPACE
+            bash scripts/generate-delta.sh
 
       - name: 🛑 Abort if Delta is Empty
         run: |
