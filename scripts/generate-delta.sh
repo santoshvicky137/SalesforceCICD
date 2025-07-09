@@ -12,8 +12,12 @@ INPUT_FILE="changed-files.txt"
 # === SAFETY CHECK ===
 echo "📂 Current directory: $(pwd)"
 ls -la
+
+export GIT_DIR="$(pwd)/.git"
+export GIT_WORK_TREE="$(pwd)"
+
 if ! git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
-  echo "❌ Not in a Git repository. Cannot detect changes for delta generation."
+  echo "❌ Not inside a Git repository. Delta generation aborted."
   exit 1
 fi
 
