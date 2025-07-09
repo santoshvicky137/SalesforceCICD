@@ -10,6 +10,8 @@ PACKAGE_XML="$PACKAGE_DIR/package.xml"
 INPUT_FILE="changed-files.txt"
 
 # === SAFETY CHECK ===
+echo "📂 Current directory: $(pwd)"
+ls -la
 if ! git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
   echo "❌ Not in a Git repository. Cannot detect changes for delta generation."
   exit 1
