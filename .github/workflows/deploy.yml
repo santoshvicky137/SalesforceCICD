@@ -3,9 +3,9 @@ name: Multi-Stage Salesforce Deployment with Rollback
 on:
   push:
     branches:
-      - qa
-      - uat
-      - preprod
+      - QA_Branch
+      - UAT_Branch
+      - PreProd_Branch
 
 env:
   API_VERSION: '60.0'
@@ -25,11 +25,11 @@ jobs:
 
       - name: 🔐 Authenticate to Salesforce Org
         run: |
-          if [[ "${GITHUB_REF##*/}" == "qa" ]]; then
+          if [[ "${GITHUB_REF##*/}" == "QA_Branch" ]]; then
             echo "${{ secrets.SFDX_AUTH_URL_QA }}" > auth-url.txt
-          elif [[ "${GITHUB_REF##*/}" == "uat" ]]; then
+          elif [[ "${GITHUB_REF##*/}" == "UAT_Branch" ]]; then
             echo "${{ secrets.SFDX_AUTH_URL_UAT }}" > auth-url.txt
-          elif [[ "${GITHUB_REF##*/}" == "preprod" ]]; then
+          elif [[ "${GITHUB_REF##*/}" == "PreProd_Branch" ]]; then
             echo "${{ secrets.SFDX_AUTH_URL_PREPROD }}" > auth-url.txt
           fi
           sf org login sfdx-url --sfdx-url-file auth-url.txt --alias target-org --set-default
