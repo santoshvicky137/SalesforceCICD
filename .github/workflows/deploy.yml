@@ -13,12 +13,20 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
     container:
       image: salesforce/cli:latest-full
 
     steps:
       - name: ⬇️ Checkout Code
         uses: actions/checkout@v3
+
+      - name: 🧾 Print Branch Name
+        
+        run: |
+          "echo Branch: ${GITHUB_REF##*/}"
 
       - name: 🔧 Make Scripts Executable
         run: chmod +x scripts/*.sh
@@ -31,7 +39,11 @@ jobs:
             echo "${{ secrets.SFDX_AUTH_URL_UAT }}" > auth-url.txt
           elif [[ "${GITHUB_REF##*/}" == "PreProd_Branch" ]]; then
             echo "${{ secrets.SFDX_AUTH_URL_PREPROD }}" > auth-url.txt
+          else
+            echo "❌ Unknown branch. Cannot determine target org."
+            exit 1
           fi
+
           sf org login sfdx-url --sfdx-url-file auth-url.txt --alias target-org --set-default
 
       - name: 🔍 Generate Delta Package
