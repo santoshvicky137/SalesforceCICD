@@ -31,7 +31,7 @@ fi
 
 # === EXIT EARLY IF NO CHANGES DETECTED ===
 if [[ ! -s "$INPUT_FILE" ]]; then
-  echo "ℹ️ There are no changes in 'force-app/' folder... Executing dry steps to complete; no actual deployment is happening."
+  echo "🚫 No changes are detected in 'force-app/' folder. Delta is empty ⚠️ running dry steps to complete pipeline flow. 🚫 No deployment will occur."
   exit 0
 fi
 
