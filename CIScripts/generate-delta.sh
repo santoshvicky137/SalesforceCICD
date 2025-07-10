@@ -56,6 +56,8 @@ echo "📦 Generating package.xml using Salesforce CLI...and current path is : $
 sf project manifest generate \
   --source-dir "$PACKAGE_DIR" \
   --api-version "$API_VERSION"
+
+  ls -ltr "$PACKAGE_DIR"
   
 # === STEP 6: Log included files ===
 echo "📜 Files included in delta package:"
