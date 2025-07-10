@@ -22,11 +22,17 @@ if ! git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
 fi
 
 echo "🔍 Detecting changes in 'force-app/'..."
-if git rev-parse HEAD~1 > /dev/null 2>&1; then
-  git diff --name-status HEAD~1 HEAD -- 'force-app/**' > "$INPUT_FILE"
+if ! git rev-parse HEAD~1 > /dev/null 2>&1; then
+  echo "⚠️ No previous commit found. Cannot compare changes. Executing dry steps."
+  echo "" > "$INPUT_FILE"
 else
-  echo "⚠️ No previous commit found. Using all files in force-app/ as delta."
-  find force-app/ -type f | awk '{print "A\t" $0}' > "$INPUT_FILE"
+  git diff --name-status HEAD~1 HEAD -- 'force-app/**' > "$INPUT_FILE"
+fi
+
+# === EXIT EARLY IF NO CHANGES DETECTED ===
+if [[ ! -s "$INPUT_FILE" ]]; then
+  echo "ℹ️ There are no changes in 'force-app/' folder... Executing dry steps to complete; no actual deployment is happening."
+  exit 0
 fi
 
 # === STEP 1: Clean and prepare delta folder ===
