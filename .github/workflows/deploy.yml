@@ -8,7 +8,7 @@ on:
       - PreProd_Branch
 
 env:
-  API_VERSION: '60.0'
+  API_VERSION: '63.0'
 
 jobs:
   deploy:
@@ -56,7 +56,7 @@ jobs:
         run: |
           if [[ -z "$(find delta/package -type f -not -name package.xml)" ]]; then
             echo "⚠️ No metadata changes detected. Skipping deployment."
-            exit 1
+            exit 0
           fi
 
       - name: 📦 Backup Delta from Org
