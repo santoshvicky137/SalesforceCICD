@@ -20,7 +20,7 @@ mkdir -p "$BACKUP_DIR"
 # === RETRIEVE METADATA ===
 if sf project retrieve start \
   --target-org "$ORG_ALIAS" \
-  --manifest "$PACKAGE_DIR" \
+  --manifest ./package.xml \
   --output-dir "$BACKUP_DIR"; then
   echo "✅ Backup completed successfully to '$BACKUP_DIR'."
 else
