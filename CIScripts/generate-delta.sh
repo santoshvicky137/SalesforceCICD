@@ -55,7 +55,7 @@ done < "$INPUT_FILE"
 echo "📦 Generating package.xml using Salesforce CLI..."
 sf project manifest generate \
   --source-dir "$PACKAGE_DIR" \
-  --api-version "$API_VERSION" > "$PACKAGE_XML"
+  --api-version "$API_VERSION"
   
 echo "📄 Contents of generated package.xml:"
 cat "$PACKAGE_XML"
