@@ -52,13 +52,6 @@ jobs:
           cd $GITHUB_WORKSPACE
           bash CIScripts/generate-delta.sh
 
-      - name: 🛑 Abort if Delta is Empty
-        run: |
-          if [[ -z "$(find delta/package -type f -not -name package.xml)" ]]; then
-            echo "⚠️ No metadata changes detected. Skipping deployment."
-            exit 0
-          fi
-
       - name: 📦 Backup Delta from Org
         run: bash CIScripts/backup-delta.sh
 
