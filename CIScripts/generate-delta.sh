@@ -32,7 +32,7 @@ fi
 # === EXIT EARLY IF NO CHANGES DETECTED ===
 if [[ ! -s "$INPUT_FILE" ]]; then
   echo "🚫 No changes are detected in 'force-app/' folder. Delta is empty ⚠️ running dry steps to complete pipeline flow. 🚫 No deployment will occur."
-  exit 0
+  exit 1
 fi
 
 # === STEP 1: Clean and prepare delta folder ===
