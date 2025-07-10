@@ -17,7 +17,7 @@ jobs:
       run:
         shell: bash
     container:
-      image: vlenergy/salesforcevlocity:v2.0
+      image: vlenergy/salesforcevlocity:v4.0
 
     steps:
       - name: ⬇️ Checkout Code
@@ -30,7 +30,7 @@ jobs:
           echo "Branch: ${GITHUB_REF##*/}"
 
       - name: 🔧 Make Scripts Executable
-        run: chmod +x scripts/*.sh
+        run: chmod +x CIScripts/*.sh
 
       - name: 🔐 Authenticate to Salesforce Org
         run: |
@@ -48,17 +48,19 @@ jobs:
           sf org login sfdx-url --sfdx-url-file auth-url.txt --alias target-org --set-default
 
       - name: 🔍 Generate Delta Package
-        run: bash scripts/generate-delta.sh
+        run: |
+            cd $GITHUB_WORKSPACE
+            bash CIScripts/generate-delta.sh
 
       - name: 🛑 Abort if Delta is Empty
         run: |
           if [[ -z "$(find delta/package -type f -not -name package.xml)" ]]; then
             echo "⚠️ No metadata changes detected. Skipping deployment."
-            exit 0
+            exit 1
           fi
 
       - name: 📦 Backup Delta from Org
-        run: bash scripts/backup-delta.sh
+        run: bash CIScripts/backup-delta.sh
 
       - name: ✅ Validate Deployment
         run: |
