@@ -24,10 +24,9 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+
       - name: 🧾 Print Branch Name
-        
-        run: |
-          echo "Branch: ${GITHUB_REF##*/}"
+        run: echo "Branch: ${GITHUB_REF##*/}"
 
       - name: 🔧 Make Scripts Executable
         run: chmod +x CIScripts/*.sh
@@ -49,8 +48,8 @@ jobs:
 
       - name: 🔍 Generate Delta Package
         run: |
-            cd $GITHUB_WORKSPACE
-            bash CIScripts/generate-delta.sh
+          cd $GITHUB_WORKSPACE
+          bash CIScripts/generate-delta.sh
 
       - name: 🛑 Abort if Delta is Empty
         run: |
@@ -67,14 +66,21 @@ jobs:
           echo "🔎 Validating deployment..."
           sf project deploy validate \
             --source-dir delta/package \
-            --target-org target-org || { echo "❌ Validation failed. Fix your code and try again."; exit 1; }
+            --target-org target-org \
+            --test-level RunSpecifiedTests \
+            --tests "AttachmentTriggerHandler_Test" \
+            --wait 10 \
+            --verbose || { echo "❌ Validation failed. Fix your code and try again."; exit 1; }
 
       - name: 🚀 Deploy Delta to Org
+        if: success()
         run: |
           echo "🚀 Deploying delta to org..."
           sf project deploy start \
             --source-dir delta/package \
             --target-org target-org \
+            --test-level RunSpecifiedTests \
+            --tests "AttachmentTriggerHandler_Test" \
             --wait 10 \
             --verbose || { echo "❌ Deployment failed."; exit 1; }
 
