@@ -53,7 +53,9 @@ jobs:
           bash CIScripts/generate-delta.sh
 
       - name: 📦 Backup Delta from Org
-        run: bash CIScripts/backup-delta.sh
+        run: |
+          cd $GITHUB_WORKSPACE
+          bash CIScripts/backup-delta.sh
 
       - name: ✅ Validate Deployment
         run: |
