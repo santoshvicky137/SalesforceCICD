@@ -30,7 +30,7 @@ jobs:
           echo "Branch: ${GITHUB_REF##*/}"
 
       - name: 🔧 Make Scripts Executable
-        run: chmod +x scripts/*.sh
+        run: chmod +x CIScripts/*.sh
 
       - name: 🔐 Authenticate to Salesforce Org
         run: |
@@ -50,7 +50,7 @@ jobs:
       - name: 🔍 Generate Delta Package
         run: |
             cd $GITHUB_WORKSPACE
-            bash scripts/generate-delta.sh
+            bash CIScripts/generate-delta.sh
 
       - name: 🛑 Abort if Delta is Empty
         run: |
@@ -60,7 +60,7 @@ jobs:
           fi
 
       - name: 📦 Backup Delta from Org
-        run: bash scripts/backup-delta.sh
+        run: bash CIScripts/backup-delta.sh
 
       - name: ✅ Validate Deployment
         run: |
