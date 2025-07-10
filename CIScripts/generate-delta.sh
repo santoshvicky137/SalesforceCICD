@@ -55,8 +55,7 @@ done < "$INPUT_FILE"
 echo "📦 Generating package.xml using Salesforce CLI..."
 sf project manifest generate \
   --source-dir "$PACKAGE_DIR" \
-  --output-file "$PACKAGE_XML" \
-  --api-version "$API_VERSION"
+  --api-version "$API_VERSION" > "$PACKAGE_XML"
 
 # === STEP 6: Log included files ===
 echo "📜 Files included in delta package:"
