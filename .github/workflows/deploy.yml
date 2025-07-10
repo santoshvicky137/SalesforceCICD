@@ -26,7 +26,8 @@ jobs:
           fetch-depth: 0
 
       - name: 🧾 Print Branch Name
-        run: echo "Branch: ${GITHUB_REF##*/}"
+        run: |
+        echo "Branch: ${GITHUB_REF##*/}"
 
       - name: 🔧 Make Scripts Executable
         run: chmod +x CIScripts/*.sh
