@@ -22,7 +22,7 @@ public class BatchDeleteTest {
 
         // Step 5: Execute the batch
         Test.startTest();
-        Database.executeBatch(batch, 10); // Batch size is larger than the number of records
+        Database.executeBatch(batch, 10); // Batch size is larger than the number of records and
         Test.stopTest();
 
         // Step 6: Verify the records are deleted
