@@ -65,9 +65,8 @@ jobs:
       - name: ✅ Validate Deployment
         run: |
           echo "🔎 Validating deployment..."
-          sf project deploy preview \
+          sf project deploy validate \
             --source-dir delta/package \
-            --manifest delta/package/package.xml \
             --target-org target-org || { echo "❌ Validation failed. Fix your code and try again."; exit 1; }
 
       - name: 🚀 Deploy Delta to Org
@@ -75,7 +74,6 @@ jobs:
           echo "🚀 Deploying delta to org..."
           sf project deploy start \
             --source-dir delta/package \
-            --manifest delta/package/package.xml \
             --target-org target-org \
             --wait 10 \
             --verbose || { echo "❌ Deployment failed."; exit 1; }
