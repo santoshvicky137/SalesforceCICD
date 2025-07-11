@@ -1,3 +1,4 @@
+
 #!/bin/bash
 
 set -e
@@ -5,7 +6,7 @@ set -o pipefail
 
 # === CONFIGURATION ===
 PACKAGE_XML="delta/package/package.xml"
-BACKUP_DIR="deltabackup"
+BACKUP_DIR="${BACKUP_DIR:-deltabackup}"
 ORG_ALIAS="${ORG_ALIAS:-target-org}"  # Allow override via environment variable
 
 # === VALIDATION CHECKS ===
