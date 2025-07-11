@@ -1,3 +1,4 @@
+
 name: Multi-Stage Salesforce Deployment with Rollback
 
 on:
@@ -70,6 +71,7 @@ jobs:
       - name: 🚀 Deploy Delta to Org
         run: |
           sf project deploy start \
+            --ignore-conflicts \
             --source-dir delta/package \
             --target-org target-org \
             --test-level RunSpecifiedTests \
@@ -107,6 +109,7 @@ jobs:
         run: chmod +x CIScripts/*.sh
 
       - name: 🔐 Authenticate to Salesforce Org
+        shell: bash
         run: |
           if [[ "${{ inputs.environment }}" == "UAT_Branch" ]]; then
             echo "${{ secrets.SFDX_AUTH_URL_UAT }}" > auth-url.txt
@@ -132,7 +135,7 @@ jobs:
           bash CIScripts/backup-delta.sh
 
       - name: 🗂️ Upload delta backup artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: delta-backup-${{ inputs.environment }}-${{ github.run_id }}-${{ github.run_number }}
           path: deltabackup*
@@ -150,6 +153,7 @@ jobs:
       - name: 🚀 Deploy Delta to Org
         run: |
           sf project deploy start \
+            --ignore-conflicts \
             --source-dir delta/package \
             --target-org target-org \
             --test-level RunSpecifiedTests \
