@@ -59,25 +59,28 @@ jobs:
           path: deltabackup*
 
       - name: ✅ Validate Deployment
+        id: validate
         run: |
-          sf project deploy validate \
+          echo "🔎 Validating deployment..."
+          DEPLOY_ID=$(sf project deploy validate \
             --source-dir delta/package \
             --target-org target-org \
             --test-level RunSpecifiedTests \
             --tests "AttachmentTriggerHandler_Test" \
             --wait 10 \
-            --verbose || { echo "❌ Validation failed."; exit 1; }
+            --verbose \
+            | grep 'Deploy ID:' | awk '{print $NF}')
+          echo "deploy_id=$DEPLOY_ID" >> $GITHUB_OUTPUT
 
-      - name: 🚀 Deploy Delta to Org
+      - name: 🚀 Quick Deploy Delta to Org
+        if: success()
         run: |
-          sf project deploy start \
-            --ignore-conflicts \
-            --source-dir delta/package \
+          echo "🚀 Quick deploying validated changes..."
+          sf project deploy quick \
             --target-org target-org \
-            --test-level RunSpecifiedTests \
-            --tests "AttachmentTriggerHandler_Test" \
+            --deploy-id ${{ steps.validate.outputs.deploy_id }} \
             --wait 10 \
-            --verbose || { echo "❌ Deployment failed."; exit 1; }
+            --verbose || { echo "❌ Quick deployment failed."; exit 1; }
 
       - name: 🧹 Final Cleanup of Delta Folder
         run: |
@@ -140,26 +143,29 @@ jobs:
           name: delta-backup-${{ inputs.environment }}-${{ github.run_id }}-${{ github.run_number }}
           path: deltabackup*
 
-      - name: ✅ Validate Deployment
+       - name: ✅ Validate Deployment
+        id: validate
         run: |
-          sf project deploy validate \
+          echo "🔎 Validating deployment..."
+          DEPLOY_ID=$(sf project deploy validate \
             --source-dir delta/package \
             --target-org target-org \
             --test-level RunSpecifiedTests \
             --tests "AttachmentTriggerHandler_Test" \
             --wait 10 \
-            --verbose || { echo "❌ Validation failed."; exit 1; }
+            --verbose \
+            | grep 'Deploy ID:' | awk '{print $NF}')
+          echo "deploy_id=$DEPLOY_ID" >> $GITHUB_OUTPUT
 
-      - name: 🚀 Deploy Delta to Org
+      - name: 🚀 Quick Deploy Delta to Org
+        if: success()
         run: |
-          sf project deploy start \
-            --ignore-conflicts \
-            --source-dir delta/package \
+          echo "🚀 Quick deploying validated changes..."
+          sf project deploy quick \
             --target-org target-org \
-            --test-level RunSpecifiedTests \
-            --tests "AttachmentTriggerHandler_Test" \
+            --deploy-id ${{ steps.validate.outputs.deploy_id }} \
             --wait 10 \
-            --verbose || { echo "❌ Deployment failed."; exit 1; }
+            --verbose || { echo "❌ Quick deployment failed."; exit 1; }
 
       - name: 🧹 Final Cleanup of Delta Folder
         run: |
