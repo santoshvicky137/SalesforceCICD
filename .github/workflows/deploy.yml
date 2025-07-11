@@ -1,4 +1,3 @@
-
 name: Multi-Stage Salesforce Deployment with Rollback
 
 on:
@@ -41,13 +40,10 @@ jobs:
           sf org login sfdx-url --sfdx-url-file auth-url.txt --alias target-org --set-default
 
       - name: 🔍 Generate Delta Package
-        run: |
-          cd $GITHUB_WORKSPACE
-          bash CIScripts/generate-delta.sh
+        run: bash CIScripts/generate-delta.sh
 
       - name: 📦 Backup Delta from Org
         run: |
-          cd $GITHUB_WORKSPACE
           export BACKUP_DIR="deltabackup-${{ github.run_id }}-${{ github.run_number }}"
           mkdir -p "$BACKUP_DIR"
           bash CIScripts/backup-delta.sh
@@ -122,17 +118,13 @@ jobs:
             echo "❌ Unknown environment. Aborting."
             exit 1
           fi
-
           sf org login sfdx-url --sfdx-url-file auth-url.txt --alias target-org --set-default
 
       - name: 🔍 Generate Delta Package
-        run: |
-          cd $GITHUB_WORKSPACE
-          bash CIScripts/generate-delta.sh
+        run: bash CIScripts/generate-delta.sh
 
       - name: 📦 Backup Delta from Org
         run: |
-          cd $GITHUB_WORKSPACE
           export BACKUP_DIR="deltabackup-${{ github.run_id }}-${{ github.run_number }}"
           mkdir -p "$BACKUP_DIR"
           bash CIScripts/backup-delta.sh
@@ -143,7 +135,7 @@ jobs:
           name: delta-backup-${{ inputs.environment }}-${{ github.run_id }}-${{ github.run_number }}
           path: deltabackup*
 
-       - name: ✅ Validate Deployment
+      - name: ✅ Validate Deployment
         id: validate
         run: |
           echo "🔎 Validating deployment..."
