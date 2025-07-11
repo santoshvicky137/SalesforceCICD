@@ -71,6 +71,7 @@ jobs:
       - name: 🚀 Deploy Delta to Org
         run: |
           sf project deploy start \
+            --ignore-conflicts \
             --source-dir delta/package \
             --target-org target-org \
             --test-level RunSpecifiedTests \
@@ -152,6 +153,7 @@ jobs:
       - name: 🚀 Deploy Delta to Org
         run: |
           sf project deploy start \
+            --ignore-conflicts \
             --source-dir delta/package \
             --target-org target-org \
             --test-level RunSpecifiedTests \
