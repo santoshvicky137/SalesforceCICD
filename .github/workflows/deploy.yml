@@ -32,17 +32,21 @@ jobs:
           fetch-depth: 0
 
       - name: 🔧 Make Scripts Executable
+        shell: bash
         run: chmod +x CIScripts/*.sh
 
       - name: 🔐 Authenticate to Salesforce Org (QA)
+        shell: bash
         run: |
           echo "${{ secrets.SFDX_AUTH_URL_QA }}" > auth-url.txt
           sf org login sfdx-url --sfdx-url-file auth-url.txt --alias target-org --set-default
 
       - name: 🔍 Generate Delta Package
+        shell: bash
         run: bash CIScripts/generate-delta.sh
 
       - name: 📦 Backup Delta from Org
+        shell: bash
         run: |
           export BACKUP_DIR="deltabackup-${{ github.run_id }}-${{ github.run_number }}"
           mkdir -p "$BACKUP_DIR"
@@ -65,12 +69,12 @@ jobs:
             --test-level RunSpecifiedTests \
             --tests "AttachmentTriggerHandler_Test" \
             --wait 10 \
-            --verbose \
-            | grep 'Deploy ID:' | awk '{print $NF}')
-          echo "deploy_id=$DEPLOY_ID" >> "$GITHUB_OUTPUT"
+            --verbose | grep 'Deploy ID:' | awk '{print $NF}')
+          printf "deploy_id=%s\n" "$DEPLOY_ID" >> "$GITHUB_OUTPUT"
 
       - name: 🚀 Quick Deploy Delta to Org
         if: success()
+        shell: bash
         run: |
           echo "🚀 Quick deploying validated changes..."
           sf project deploy quick \
@@ -80,11 +84,13 @@ jobs:
             --verbose || { echo "❌ Quick deployment failed."; exit 1; }
 
       - name: 🧹 Final Cleanup of Delta Folder
+        shell: bash
         run: |
           rm -rf delta
           echo "✅ Delta folder cleaned up."
 
       - name: 📝 Summarize Deployment
+        shell: bash
         run: |
           echo "### Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "- Target Environment: QA" >> $GITHUB_STEP_SUMMARY
@@ -106,6 +112,7 @@ jobs:
           fetch-depth: 0
 
       - name: 🔧 Make Scripts Executable
+        shell: bash
         run: chmod +x CIScripts/*.sh
 
       - name: 🔐 Authenticate to Salesforce Org
@@ -122,9 +129,11 @@ jobs:
           sf org login sfdx-url --sfdx-url-file auth-url.txt --alias target-org --set-default
 
       - name: 🔍 Generate Delta Package
+        shell: bash
         run: bash CIScripts/generate-delta.sh
 
       - name: 📦 Backup Delta from Org
+        shell: bash
         run: |
           export BACKUP_DIR="deltabackup-${{ github.run_id }}-${{ github.run_number }}"
           mkdir -p "$BACKUP_DIR"
@@ -147,12 +156,12 @@ jobs:
             --test-level RunSpecifiedTests \
             --tests "AttachmentTriggerHandler_Test" \
             --wait 10 \
-            --verbose \
-            | grep 'Deploy ID:' | awk '{print $NF}')
-          echo "deploy_id=$DEPLOY_ID" >> "$GITHUB_OUTPUT"
+            --verbose | grep 'Deploy ID:' | awk '{print $NF}')
+          printf "deploy_id=%s\n" "$DEPLOY_ID" >> "$GITHUB_OUTPUT"
 
       - name: 🚀 Quick Deploy Delta to Org
         if: success()
+        shell: bash
         run: |
           echo "🚀 Quick deploying validated changes..."
           sf project deploy quick \
@@ -162,11 +171,13 @@ jobs:
             --verbose || { echo "❌ Quick deployment failed."; exit 1; }
 
       - name: 🧹 Final Cleanup of Delta Folder
+        shell: bash
         run: |
           rm -rf delta
           echo "✅ Delta folder cleaned up."
 
       - name: 📝 Summarize Deployment
+        shell: bash
         run: |
           echo "### Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "- Target Environment: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
