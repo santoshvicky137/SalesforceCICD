@@ -8,7 +8,7 @@ on:
       - PreProd_Branch
 
 env:
-  API_VERSION: '60.0'
+  API_VERSION: '63.0'
 
 jobs:
   deploy:
@@ -24,13 +24,13 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+
       - name: 🧾 Print Branch Name
-        
         run: |
           echo "Branch: ${GITHUB_REF##*/}"
 
       - name: 🔧 Make Scripts Executable
-        run: chmod +x scripts/*.sh
+        run: chmod +x CIScripts/*.sh
 
       - name: 🔐 Authenticate to Salesforce Org
         run: |
@@ -49,34 +49,34 @@ jobs:
 
       - name: 🔍 Generate Delta Package
         run: |
-            cd $GITHUB_WORKSPACE
-            bash scripts/generate-delta.sh
-
-      - name: 🛑 Abort if Delta is Empty
-        run: |
-          if [[ -z "$(find delta/package -type f -not -name package.xml)" ]]; then
-            echo "⚠️ No metadata changes detected. Skipping deployment."
-            exit 1
-          fi
+          cd $GITHUB_WORKSPACE
+          bash CIScripts/generate-delta.sh
 
       - name: 📦 Backup Delta from Org
-        run: bash scripts/backup-delta.sh
+        run: |
+          cd $GITHUB_WORKSPACE
+          bash CIScripts/backup-delta.sh
 
       - name: ✅ Validate Deployment
         run: |
           echo "🔎 Validating deployment..."
-          sf project deploy preview \
+          sf project deploy validate \
             --source-dir delta/package \
-            --manifest delta/package/package.xml \
-            --target-org target-org || { echo "❌ Validation failed. Fix your code and try again."; exit 1; }
+            --target-org target-org \
+            --test-level RunSpecifiedTests \
+            --tests "AttachmentTriggerHandler_Test" \
+            --wait 10 \
+            --verbose || { echo "❌ Validation failed. Fix your code and try again."; exit 1; }
 
       - name: 🚀 Deploy Delta to Org
+        if: success()
         run: |
           echo "🚀 Deploying delta to org..."
           sf project deploy start \
             --source-dir delta/package \
-            --manifest delta/package/package.xml \
             --target-org target-org \
+            --test-level RunSpecifiedTests \
+            --tests "AttachmentTriggerHandler_Test" \
             --wait 10 \
             --verbose || { echo "❌ Deployment failed."; exit 1; }
 
