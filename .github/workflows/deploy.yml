@@ -132,7 +132,7 @@ jobs:
           bash CIScripts/backup-delta.sh
 
       - name: 🗂️ Upload delta backup artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: delta-backup-${{ inputs.environment }}-${{ github.run_id }}-${{ github.run_number }}
           path: deltabackup*
