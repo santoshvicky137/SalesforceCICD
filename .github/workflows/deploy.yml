@@ -107,6 +107,7 @@ jobs:
         run: chmod +x CIScripts/*.sh
 
       - name: 🔐 Authenticate to Salesforce Org
+        shell: bash
         run: |
           if [[ "${{ inputs.environment }}" == "UAT_Branch" ]]; then
             echo "${{ secrets.SFDX_AUTH_URL_UAT }}" > auth-url.txt
