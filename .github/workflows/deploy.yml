@@ -1,5 +1,3 @@
-
-
 name: Multi-Stage Salesforce Deployment with Rollback
 
 on:
@@ -162,11 +160,6 @@ jobs:
             --wait 10 \
             --verbose || { echo "❌ Deployment failed."; exit 1; }
 
-      - name: 🧹 Final Cleanup of Delta Folder
-        run: |
-          rm -rf delta
-          echo "✅ Delta folder cleaned up."
-
       - name: 📝 Summarize Deployment
         run: |
           echo "### Deployment Summary" >> $GITHUB_STEP_SUMMARY
@@ -175,3 +168,10 @@ jobs:
           echo "- Timestamp: $(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_STEP_SUMMARY
           echo "- Metadata Components Deployed:" >> $GITHUB_STEP_SUMMARY
           grep "<name>" delta/package/package.xml | sed 's/ *<[^>]*>//g' | sort | uniq >> $GITHUB_STEP_SUMMARY
+
+      - name: 🧹 Final Cleanup of Delta Folder
+        run: |
+          rm -rf delta
+          echo "✅ Delta folder cleaned up."
+
+      
