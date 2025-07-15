@@ -20,6 +20,7 @@ mkdir -p "$BACKUP_DIR"
 
 # === RETRIEVE METADATA ===
 if sf project retrieve start \
+  --ignore-conflicts \
   --target-org "$ORG_ALIAS" \
   --manifest ./package.xml \
   --output-dir "$BACKUP_DIR"; then
