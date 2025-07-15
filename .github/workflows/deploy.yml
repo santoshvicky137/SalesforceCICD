@@ -1,12 +1,19 @@
-
-
-name: Multi-Stage Salesforce Deployment with Rollback
+name: Multi-Stage Salesforce Deployment with Backup
 
 on:
   push:
     branches:
-      - QA_Branch
-
+    - 'feature/**'
+    - 'Feature/**'
+    - 'FEATURE/**'
+    - 'SMGR-*'
+    - 'smgr-*'
+    - 'Smgr-*'
+    - 'SFO/**'
+    - 'sfo/**'
+    - 'Sfo/**'
+    - QA_Branch
+    - qa_branch
   workflow_dispatch:
     inputs:
       environment:
@@ -14,13 +21,46 @@ on:
         required: true
         type: choice
         options:
-          - UAT_Branch
-          - PreProd_Branch
+        - UAT_Branch
+        - PreProd_Branch
 
 env:
   API_VERSION: '63.0'
 
 jobs:
+  feature-validate:
+    if: startsWith(github.ref_name, 'feature/') || startsWith(github.ref_name, 'Feature/') || startsWith(github.ref_name, 'FEATURE/') || startsWith(github.ref_name, 'SMGR-') || startsWith(github.ref_name, 'smgr-') || startsWith(github.ref_name, 'Smgr-') || startsWith(github.ref_name, 'SFO/') || startsWith(github.ref_name, 'sfo/') || startsWith(github.ref_name, 'Sfo/')
+    runs-on: ubuntu-latest
+    container:
+      image: vlenergy/salesforcevlocity:v4.0
+
+    steps:
+    - name: ⬇️ Checkout Code
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: 🔧 Make Scripts Executable
+      run: chmod +x CIScripts/*.sh
+
+    - name: 🔐 Authenticate to Salesforce Org (QA)
+      run: |
+        echo "${{ secrets.SFDX_AUTH_URL_QA }}" > auth-url.txt
+        sf org login sfdx-url --sfdx-url-file auth-url.txt --alias target-org --set-default
+
+    - name: 🔍 Generate Delta Package
+      run: bash CIScripts/generate-delta.sh
+
+    - name: ✅ Validate Deployment
+      run: |
+        sf project deploy validate \
+          --source-dir delta/package \
+          --target-org target-org \
+          --test-level RunSpecifiedTests \
+          --tests "AttachmentTriggerHandler_Test" \
+          --wait 10 \
+          --verbose || { echo "❌ Validation failed."; exit 1; }
+
   qa-deploy:
     if: github.ref == 'refs/heads/QA_Branch'
     runs-on: ubuntu-latest
@@ -28,71 +68,68 @@ jobs:
       image: vlenergy/salesforcevlocity:v4.0
 
     steps:
-      - name: ⬇️ Checkout Code
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
+    - name: ⬇️ Checkout Code
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
 
-      - name: 🔧 Make Scripts Executable
-        run: chmod +x CIScripts/*.sh
+    - name: 🔧 Make Scripts Executable
+      run: chmod +x CIScripts/*.sh
 
-      - name: 🔐 Authenticate to Salesforce Org (QA)
-        run: |
-          echo "${{ secrets.SFDX_AUTH_URL_QA }}" > auth-url.txt
-          sf org login sfdx-url --sfdx-url-file auth-url.txt --alias target-org --set-default
+    - name: 🔐 Authenticate to Salesforce Org (QA)
+      run: |
+        echo "${{ secrets.SFDX_AUTH_URL_QA }}" > auth-url.txt
+        sf org login sfdx-url --sfdx-url-file auth-url.txt --alias target-org --set-default
 
-      - name: 🔍 Generate Delta Package
-        run: |
-          cd $GITHUB_WORKSPACE
-          bash CIScripts/generate-delta.sh
+    - name: 🔍 Generate Delta Package
+      run: bash CIScripts/generate-delta.sh
 
-      - name: 📦 Backup Delta from Org
-        run: |
-          cd $GITHUB_WORKSPACE
-          export BACKUP_DIR="deltabackup-${{ github.run_id }}-${{ github.run_number }}"
-          mkdir -p "$BACKUP_DIR"
-          bash CIScripts/backup-delta.sh
+    - name: 📦 Backup Delta from Org
+      run: |
+        export BACKUP_DIR="deltabackup-${{ github.run_id }}-${{ github.run_number }}"
+        mkdir -p "$BACKUP_DIR"
+        bash CIScripts/backup-delta.sh
 
-      - name: 🗂️ Upload delta backup artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: delta-backup-QA-${{ github.run_id }}-${{ github.run_number }}
-          path: deltabackup*
+    - name: 🗂️ Upload delta backup artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: delta-backup-QA-${{ github.run_id }}-${{ github.run_number }}
+        path: deltabackup*
 
-      - name: ✅ Validate Deployment
-        run: |
-          sf project deploy validate \
-            --source-dir delta/package \
-            --target-org target-org \
-            --test-level RunSpecifiedTests \
-            --tests "AttachmentTriggerHandler_Test" \
-            --wait 10 \
-            --verbose || { echo "❌ Validation failed."; exit 1; }
+    - name: ✅ Validate Deployment
+      run: |
+        sf project deploy validate \
+          --source-dir delta/package \
+          --target-org target-org \
+          --test-level RunSpecifiedTests \
+          --tests "AttachmentTriggerHandler_Test" \
+          --wait 10 \
+          --verbose || { echo "❌ Validation failed."; exit 1; }
 
-      - name: 🚀 Deploy Delta to Org
-        run: |
-          sf project deploy start \
-            --ignore-conflicts \
-            --source-dir delta/package \
-            --target-org target-org \
-            --test-level RunSpecifiedTests \
-            --tests "AttachmentTriggerHandler_Test" \
-            --wait 10 \
-            --verbose || { echo "❌ Deployment failed."; exit 1; }
+    - name: 🚀 Deploy Delta to Org
+      run: |
+        sf project deploy start \
+          --ignore-conflicts \
+          --source-dir delta/package \
+          --target-org target-org \
+          --test-level RunSpecifiedTests \
+          --tests "AttachmentTriggerHandler_Test" \
+          --wait 10 \
+          --verbose || { echo "❌ Deployment failed."; exit 1; }
 
-      - name: 🧹 Final Cleanup of Delta Folder
-        run: |
-          rm -rf delta
-          echo "✅ Delta folder cleaned up."
+    - name: 🧹 Final Cleanup of Delta Folder
+      run: |
+        rm -rf delta
+        echo "✅ Delta folder cleaned up."
 
-      - name: 📝 Summarize Deployment
-        run: |
-          echo "### Deployment Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- Target Environment: QA" >> $GITHUB_STEP_SUMMARY
-          echo "- Run ID: ${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Timestamp: $(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_STEP_SUMMARY
-          echo "- Metadata Components Deployed:" >> $GITHUB_STEP_SUMMARY
-          grep "<name>" delta/package/package.xml | sed 's/ *<[^>]*>//g' | sort | uniq >> $GITHUB_STEP_SUMMARY
+    - name: 📝 Summarize Deployment
+      run: |
+        echo "### Deployment Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- Target Environment: QA" >> $GITHUB_STEP_SUMMARY
+        echo "- Run ID: ${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Timestamp: $(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_STEP_SUMMARY
+        echo "- Metadata Components Deployed:" >> $GITHUB_STEP_SUMMARY
+        grep "<name>" delta/package/package.xml | sed 's/ *<[^>]*>//g' | sort | uniq >> $GITHUB_STEP_SUMMARY
 
   manual-deploy:
     if: github.event_name == 'workflow_dispatch'
@@ -101,77 +138,74 @@ jobs:
       image: vlenergy/salesforcevlocity:v4.0
 
     steps:
-      - name: ⬇️ Checkout Code
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
+    - name: ⬇️ Checkout Code
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
 
-      - name: 🔧 Make Scripts Executable
-        run: chmod +x CIScripts/*.sh
+    - name: 🔧 Make Scripts Executable
+      run: chmod +x CIScripts/*.sh
 
-      - name: 🔐 Authenticate to Salesforce Org
-        shell: bash
-        run: |
-          if [[ "${{ inputs.environment }}" == "UAT_Branch" ]]; then
-            echo "${{ secrets.SFDX_AUTH_URL_UAT }}" > auth-url.txt
-          elif [[ "${{ inputs.environment }}" == "PreProd_Branch" ]]; then
-            echo "${{ secrets.SFDX_AUTH_URL_PREPROD }}" > auth-url.txt
-          else
-            echo "❌ Unknown environment. Aborting."
-            exit 1
-          fi
+    - name: 🔐 Authenticate to Salesforce Org
+      shell: bash
+      run: |
+        if [[ "${{ inputs.environment }}" == "UAT_Branch" ]]; then
+          echo "${{ secrets.SFDX_AUTH_URL_UAT }}" > auth-url.txt
+        elif [[ "${{ inputs.environment }}" == "PreProd_Branch" ]]; then
+          echo "${{ secrets.SFDX_AUTH_URL_PREPROD }}" > auth-url.txt
+        else
+          echo "❌ Unknown environment. Aborting."
+          exit 1
+        fi
 
-          sf org login sfdx-url --sfdx-url-file auth-url.txt --alias target-org --set-default
+        sf org login sfdx-url --sfdx-url-file auth-url.txt --alias target-org --set-default
 
-      - name: 🔍 Generate Delta Package
-        run: |
-          cd $GITHUB_WORKSPACE
-          bash CIScripts/generate-delta.sh
+    - name: 🔍 Generate Delta Package
+      run: bash CIScripts/generate-delta.sh
 
-      - name: 📦 Backup Delta from Org
-        run: |
-          cd $GITHUB_WORKSPACE
-          export BACKUP_DIR="deltabackup-${{ github.run_id }}-${{ github.run_number }}"
-          mkdir -p "$BACKUP_DIR"
-          bash CIScripts/backup-delta.sh
+    - name: 📦 Backup Delta from Org
+      run: |
+        export BACKUP_DIR="deltabackup-${{ github.run_id }}-${{ github.run_number }}"
+        mkdir -p "$BACKUP_DIR"
+        bash CIScripts/backup-delta.sh
 
-      - name: 🗂️ Upload delta backup artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: delta-backup-${{ inputs.environment }}-${{ github.run_id }}-${{ github.run_number }}
-          path: deltabackup*
+    - name: 🗂️ Upload delta backup artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: delta-backup-${{ inputs.environment }}-${{ github.run_id }}-${{ github.run_number }}
+        path: deltabackup*
 
-      - name: ✅ Validate Deployment
-        run: |
-          sf project deploy validate \
-            --source-dir delta/package \
-            --target-org target-org \
-            --test-level RunSpecifiedTests \
-            --tests "AttachmentTriggerHandler_Test" \
-            --wait 10 \
-            --verbose || { echo "❌ Validation failed."; exit 1; }
+    - name: ✅ Validate Deployment
+      run: |
+        sf project deploy validate \
+          --source-dir delta/package \
+          --target-org target-org \
+          --test-level RunSpecifiedTests \
+          --tests "AttachmentTriggerHandler_Test" \
+          --wait 10 \
+          --verbose || { echo "❌ Validation failed."; exit 1; }
 
-      - name: 🚀 Deploy Delta to Org
-        run: |
-          sf project deploy start \
-            --ignore-conflicts \
-            --source-dir delta/package \
-            --target-org target-org \
-            --test-level RunSpecifiedTests \
-            --tests "AttachmentTriggerHandler_Test" \
-            --wait 10 \
-            --verbose || { echo "❌ Deployment failed."; exit 1; }
+    - name: 🚀 Deploy Delta to Org
+      run: |
+        sf project deploy start \
+          --ignore-conflicts \
+          --source-dir delta/package \
+          --target-org target-org \
+          --test-level RunSpecifiedTests \
+          --tests "AttachmentTriggerHandler_Test" \
+          --wait 10 \
+          --verbose || { echo "❌ Deployment failed."; exit 1; }
 
-      - name: 🧹 Final Cleanup of Delta Folder
-        run: |
-          rm -rf delta
-          echo "✅ Delta folder cleaned up."
+    - name: 🧹 Final Cleanup of Delta Folder
+      run: |
+        rm -rf delta
+        echo "✅ Delta folder cleaned up."
 
-      - name: 📝 Summarize Deployment
-        run: |
-          echo "### Deployment Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- Target Environment: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Run ID: ${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Timestamp: $(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_STEP_SUMMARY
-          echo "- Metadata Components Deployed:" >> $GITHUB_STEP_SUMMARY
-          grep "<name>" delta/package/package.xml | sed 's/ *<[^>]*>//g' | sort | uniq >> $GITHUB_STEP_SUMMARY
+    - name: 📝 Summarize Deployment
+      run: |
+        echo "### Deployment Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- Target Environment: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Run ID: ${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Timestamp: $(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_STEP_SUMMARY
+        echo "- Metadata Components Deployed:" >> $GITHUB_STEP_SUMMARY
+        grep "<name>" ./package.xml | sed 's/ *<[^>]*>//g' | sort | uniq >> $GITHUB_STEP_SUMMARY
