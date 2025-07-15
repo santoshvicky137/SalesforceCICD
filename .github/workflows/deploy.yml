@@ -116,20 +116,18 @@ jobs:
           --tests "AttachmentTriggerHandler_Test" \
           --wait 10 \
           --verbose || { echo "❌ Deployment failed."; exit 1; }
-
+    - name: 📝 Summarize Deployment
+      run: |
+        echo "### Deployment Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- Target Environment: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Run ID: ${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Timestamp: $(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_STEP_SUMMARY
+        echo "- Metadata Components Deployed:" >> $GITHUB_STEP_SUMMARY
+        grep "<name>" "$PACKAGE_XML" | sed 's/ *<[^>]*>//g' | sort | uniq >> $GITHUB_STEP_SUMMARY 
     - name: 🧹 Final Cleanup of Delta Folder
       run: |
         rm -rf delta
         echo "✅ Delta folder cleaned up."
-
-    - name: 📝 Summarize Deployment
-      run: |
-        echo "### Deployment Summary" >> $GITHUB_STEP_SUMMARY
-        echo "- Target Environment: QA" >> $GITHUB_STEP_SUMMARY
-        echo "- Run ID: ${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
-        echo "- Timestamp: $(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_STEP_SUMMARY
-        echo "- Metadata Components Deployed:" >> $GITHUB_STEP_SUMMARY
-        grep "<name>" "$PACKAGE_XML" | sed 's/ *<[^>]*>//g' | sort | uniq >> $GITHUB_STEP_SUMMARY
 
   manual-deploy:
     if: github.event_name == 'workflow_dispatch'
@@ -196,11 +194,6 @@ jobs:
           --wait 10 \
           --verbose || { echo "❌ Deployment failed."; exit 1; }
 
-    - name: 🧹 Final Cleanup of Delta Folder
-      run: |
-        rm -rf delta
-        echo "✅ Delta folder cleaned up."
-
     - name: 📝 Summarize Deployment
       run: |
         echo "### Deployment Summary" >> $GITHUB_STEP_SUMMARY
@@ -208,4 +201,9 @@ jobs:
         echo "- Run ID: ${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
         echo "- Timestamp: $(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_STEP_SUMMARY
         echo "- Metadata Components Deployed:" >> $GITHUB_STEP_SUMMARY
-        grep "<name>" "$PACKAGE_XML" | sed 's/ *<[^>]*>//g' | sort | uniq >> $GITHUB_STEP_SUMMARY
+        grep "<name>" "$PACKAGE_XML" | sed 's/ *<[^>]*>//g' | sort | uniq >> $GITHUB_STEP_SUMMARY      
+
+    - name: 🧹 Final Cleanup of Delta Folder
+      run: |
+        rm -rf delta
+        echo "✅ Delta folder cleaned up."
