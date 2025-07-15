@@ -4,9 +4,16 @@ on:
   push:
     branches:
     - 'feature/**'
-    - 'SMGR/**'
+    - 'Feature/**'
+    - 'FEATURE/**'
+    - 'SMGR-*'
+    - 'smgr-*'
+    - 'Smgr-*'
     - 'SFO/**'
+    - 'sfo/**'
+    - 'Sfo/**'
     - QA_Branch
+    - qa_branch
   workflow_dispatch:
     inputs:
       environment:
@@ -21,9 +28,8 @@ env:
   API_VERSION: '63.0'
 
 jobs:
-  # 🧪 Validation for Feature Branches.
   feature-validate:
-    if: startsWith(toLower(github.ref_name), 'feature/') || startsWith(toLower(github.ref_name), 'sfo/') || startsWith(toLower(github.ref_name), 'smgr/')
+    if: startsWith(github.ref_name, 'feature/') || startsWith(github.ref_name, 'Feature/') || startsWith(github.ref_name, 'FEATURE/') || startsWith(github.ref_name, 'SMGR-') || startsWith(github.ref_name, 'smgr-') || startsWith(github.ref_name, 'Smgr-') || startsWith(github.ref_name, 'SFO/') || startsWith(github.ref_name, 'sfo/') || startsWith(github.ref_name, 'Sfo/')
     runs-on: ubuntu-latest
     container:
       image: vlenergy/salesforcevlocity:v4.0
@@ -55,7 +61,6 @@ jobs:
           --wait 10 \
           --verbose || { echo "❌ Validation failed."; exit 1; }
 
-  # 🚀 Full Deployment Flow on QA_Branch Merge
   qa-deploy:
     if: github.ref == 'refs/heads/QA_Branch'
     runs-on: ubuntu-latest
@@ -126,7 +131,6 @@ jobs:
         echo "- Metadata Components Deployed:" >> $GITHUB_STEP_SUMMARY
         grep "<name>" delta/package/package.xml | sed 's/ *<[^>]*>//g' | sort | uniq >> $GITHUB_STEP_SUMMARY
 
-  # 📦 Manual Deploy to UAT or PreProd
   manual-deploy:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
