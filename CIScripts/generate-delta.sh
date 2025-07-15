@@ -57,9 +57,9 @@ sf project manifest generate \
   --source-dir "$PACKAGE_DIR" \
   --api-version "$API_VERSION"
 
-  mv ./package.xml "$PACKAGE_XML"
 
-  ls -ltr "$$PACKAGE_XML"
+mv ./package.xml "$PACKAGE_XML"
+
   
 # === STEP 6: Log included files ===
 echo "📜 Files included in delta package:"
