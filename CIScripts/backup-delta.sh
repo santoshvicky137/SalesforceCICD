@@ -23,7 +23,7 @@ mkdir -p "$BACKUP_DIR"
 if sf project retrieve start \
   --ignore-conflicts \
   --target-org "$ORG_ALIAS" \
-  --manifest ./package.xml \
+  --manifest "$PACKAGE_XML" \
   --output-dir "$BACKUP_DIR"; then
   echo "✅ Backup completed successfully to '$BACKUP_DIR'."
 else
