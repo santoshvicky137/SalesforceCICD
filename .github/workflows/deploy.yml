@@ -87,7 +87,7 @@ jobs:
 
     - name: 🧠 Generate Fallback SHA if Artifact Missing
       run: |
-        git config --global --add safe.directory ${{ github.workspace }}
+        git config --global --add safe.directory /__w/SalesforceCICD/SalesforceCICD
         if [ ! -f temp-sha/.last-deploy-sha ]; then
           echo "ℹ️ No SHA artifact found. Using latest commit SHA from QA_Branch."
           git fetch origin QA_Branch
@@ -205,7 +205,7 @@ jobs:
 
     - name: 🧠 Generate Fallback SHA if Artifact Missing
       run: |
-        git config --global --add safe.directory ${{ github.workspace }}
+        git config --global --add safe.directory /__w/SalesforceCICD/SalesforceCICD
         if [ ! -f temp-sha/.last-deploy-sha ]; then
           echo "ℹ️ SHA artifact not found. Using latest commit from branch: ${{ inputs.environment }}"
           git fetch origin
