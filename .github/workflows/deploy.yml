@@ -96,6 +96,14 @@ jobs:
           echo "✅ Using SHA from artifact."
           cp temp-sha/.last-deploy-sha .last-deploy-sha
         fi
+    - name: 💾 Save Last Deploy SHA
+      run: cp .last-deploy-sha deployed-sha.txt
+
+    - name: 📤 Upload Last Deploy SHA
+      uses: actions/upload-artifact@v4
+      with:
+        name: last-deploy-sha-QA_Branch
+        path: deployed-sha.txt
 
     - name: 🔍 Generate Delta Package
       run: bash CIScripts/generate-delta.sh
@@ -143,15 +151,6 @@ jobs:
         else
           echo "🚫 No destructive changes found. Skipping."
         fi
-
-    - name: 💾 Save Last Deploy SHA
-      run: cp .last-deploy-sha deployed-sha.txt
-
-    - name: 📤 Upload Last Deploy SHA
-      uses: actions/upload-artifact@v4
-      with:
-        name: last-deploy-sha-QA_Branch
-        path: deployed-sha.txt
 
     - name: 📝 Write Deployment Summary
       run: |
