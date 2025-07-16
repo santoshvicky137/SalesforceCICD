@@ -155,6 +155,8 @@ jobs:
         else
           echo "🚫 No destructive changes found. Skipping."
         fi
+    - name: 🛡️ Mark Workspace as Safe for Git
+      run: git config --global --add safe.directory /__w/SalesforceCICD/SalesforceCICD
 
     - name: 💾 Save Last Deploy SHA
       run: git rev-parse HEAD > .last-deploy-sha
