@@ -163,7 +163,7 @@ jobs:
     - name: 🧹 Final Cleanup
       run: rm -rf delta/destructive temp-sha deployed-sha.txt .last-deploy-sha
 
-    manual-deploy:
+  manual-deploy:
       if: github.event_name == 'workflow_dispatch'
       runs-on: ubuntu-latest
       container:
