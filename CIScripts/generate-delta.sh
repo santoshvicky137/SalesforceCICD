@@ -7,7 +7,9 @@ API_VERSION="${API_VERSION:-63.0}"
 DELTA_DIR="delta"
 PACKAGE_DIR="$DELTA_DIR/package"
 PACKAGE_XML="$PACKAGE_DIR/package.xml"
+DESTRUCTIVE_XML="$DELTA_DIR/destructiveChanges.xml"
 INPUT_FILE="changed-files.txt"
+DELETIONS_FILE="deleted-files.txt"
 ENVIRONMENT="${ENVIRONMENT:-QA}"  # Default to QA if not passed
 
 # === DETERMINE BASE BRANCH ===
@@ -58,10 +60,14 @@ echo "🧹 Cleaning delta folder..."
 rm -rf "$DELTA_DIR"
 mkdir -p "$PACKAGE_DIR"
 
-# === STEP 4: Copy changed metadata files ===
+# === STEP 4: Copy changed (non-deleted) metadata files ===
 echo "📁 Copying changed metadata files..."
+> "$DELETIONS_FILE"
 while read -r status file; do
-  [[ "$status" == "D" ]] && continue
+  if [[ "$status" == "D" ]]; then
+    echo "$file" >> "$DELETIONS_FILE"
+    continue
+  fi
   [[ ! -f "$file" ]] && continue
   dest="$PACKAGE_DIR/$file"
   mkdir -p "$(dirname "$dest")"
@@ -76,14 +82,34 @@ sf project manifest generate \
 
 mv ./package.xml "$PACKAGE_XML"
 
-# === STEP 6: Log included files ===
+# === STEP 6: Build destructiveChanges.xml ===
+echo "🗑️ Generating destructiveChanges.xml from deleted files..."
+echo '<?xml version="1.0" encoding="UTF-8"?>' > "$DESTRUCTIVE_XML"
+echo "<Package xmlns=\"http://soap.sforce.com/2006/04/metadata\">" >> "$DESTRUCTIVE_XML"
+
+# Group deleted metadata by type
+cut -d '/' -f2- <<< "$(grep . "$DELETIONS_FILE")" \
+  | sed 's/\.[^.]*$//' \
+  | awk -F '/' '{print $1, $2}' \
+  | sort | uniq \
+  | while read type name; do
+      echo "  <types>" >> "$DESTRUCTIVE_XML"
+      echo "    <members>$name</members>" >> "$DESTRUCTIVE_XML"
+      echo "    <name>$type</name>" >> "$DESTRUCTIVE_XML"
+      echo "  </types>" >> "$DESTRUCTIVE_XML"
+    done
+
+echo "  <version>$API_VERSION</version>" >> "$DESTRUCTIVE_XML"
+echo "</Package>" >> "$DESTRUCTIVE_XML"
+
+# === STEP 7: Log included files ===
 echo "📜 Files included in delta package:"
 find "$PACKAGE_DIR" -type f ! -name "package.xml" | sed "s|^$PACKAGE_DIR/|- |"
 
-# === STEP 7: Final success message ===
-echo "✅ Delta package and package.xml generated successfully."
+# === STEP 8: Final success message ===
+echo "✅ Delta and destructiveChanges.xml generated successfully."
 
-# === STEP 8: Summarize deployment (if supported by runner) ===
+# === STEP 9: Write summary if supported ===
 if [[ -n "$GITHUB_STEP_SUMMARY" ]]; then
   echo "📝 Writing summary to GitHub step summary..."
   {
@@ -95,6 +121,8 @@ if [[ -n "$GITHUB_STEP_SUMMARY" ]]; then
     echo "- **Timestamp**: $(date +'%Y-%m-%d %H:%M:%S')"
     echo "- **Metadata Components Deployed:**"
     grep "<name>" "$PACKAGE_XML" | sed 's/ *<[^>]*>//g' | sort | uniq | sed 's/^/- /'
+    echo "- **Destructive Components Removed:**"
+    grep "<name>" "$DESTRUCTIVE_XML" | sed 's/ *<[^>]*>//g' | sort | uniq | sed 's/^/- /'
   } >> "$GITHUB_STEP_SUMMARY"
 else
   echo "⚠️ GITHUB_STEP_SUMMARY not set. Skipping summary output."

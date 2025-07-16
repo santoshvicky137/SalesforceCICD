@@ -1,4 +1,4 @@
-name: Multi-Stage Salesforce Deployment with Backup
+name: Multi-Stage Salesforce Deployment with Backup & Destructive Changes
 
 on:
   push:
@@ -26,10 +26,12 @@ on:
 env:
   API_VERSION: '63.0'
   PACKAGE_XML: 'delta/package/package.xml'
+  ORG_ALIAS: 'target-org'
+  FALLBACK_DEPTH: 10
 
 jobs:
   feature-validate:
-    if: startsWith(github.ref_name, 'feature/') || startsWith(github.ref_name, 'SMGR-') || startsWith(github.ref_name, 'SFO/')
+    if: startsWith(github.ref_name, 'feature/') || startsWith(github.ref_name, 'Feature/') || startsWith(github.ref_name, 'FEATURE/') || startsWith(github.ref_name, 'SMGR-') || startsWith(github.ref_name, 'smgr-') || startsWith(github.ref_name, 'Smgr-') || startsWith(github.ref_name, 'SFO/') || startsWith(github.ref_name, 'sfo/') || startsWith(github.ref_name, 'Sfo/')
     runs-on: ubuntu-latest
     container:
       image: vlenergy/salesforcevlocity:v4.0
@@ -85,16 +87,26 @@ jobs:
         echo "${{ secrets.SFDX_AUTH_URL_QA }}" > auth-url.txt
         sf org login sfdx-url --sfdx-url-file auth-url.txt --alias target-org --set-default
 
+    - name: 📥 Download Previous Deploy SHA (if exists)
+      uses: actions/download-artifact@v4
+      with:
+        name: last-deploy-sha-QA_Branch
+        path: temp-sha
+      continue-on-error: true
+
     - name: 🔍 Generate Delta Package
       run: bash CIScripts/generate-delta.sh
+      env:
+        ENVIRONMENT: QA
+        FALLBACK_DEPTH: ${{ env.FALLBACK_DEPTH }}
 
     - name: 📦 Backup Delta from Org
-      run: |
-        export BACKUP_DIR="deltabackup-${{ github.run_id }}-${{ github.run_number }}"
-        mkdir -p "$BACKUP_DIR"
-        bash CIScripts/backup-delta.sh
+      run: bash CIScripts/backup-delta.sh
+      env:
+        BACKUP_DIR: "deltabackup-${{ github.run_id }}-${{ github.run_number }}"
+        ORG_ALIAS: ${{ env.ORG_ALIAS }}
 
-    - name: 🗂️ Upload delta backup artifact
+    - name: 🗂️ Upload Delta Backup Artifact
       uses: actions/upload-artifact@v4
       with:
         name: delta-backup-QA-${{ github.run_id }}-${{ github.run_number }}
@@ -104,7 +116,7 @@ jobs:
       run: |
         sf project deploy validate \
           --source-dir delta/package \
-          --target-org target-org \
+          --target-org ${{ env.ORG_ALIAS }} \
           --test-level RunSpecifiedTests \
           --tests "AttachmentTriggerHandler_Test" \
           --wait 10 \
@@ -113,32 +125,48 @@ jobs:
     - name: 🚀 Deploy Delta to Org
       run: |
         sf project deploy start \
-          --ignore-conflicts \
           --source-dir delta/package \
-          --target-org target-org \
+          --ignore-conflicts \
+          --target-org ${{ env.ORG_ALIAS }} \
           --test-level RunSpecifiedTests \
           --tests "AttachmentTriggerHandler_Test" \
           --wait 10 \
           --verbose || { echo "❌ Deployment failed."; exit 1; }
 
-    - name: 📝 Summarize Deployment
+    - name: 🔥 Deploy Destructive Changes to Org (if any)
       run: |
-        if [[ -z "$GITHUB_STEP_SUMMARY" ]]; then
-          echo "⚠️ GITHUB_STEP_SUMMARY not set. Skipping summary output."
-          exit 0
+        if [[ -s "delta/destructiveChanges.xml" ]]; then
+          echo "✅ Destructive changes found. Deploying..."
+          mkdir -p delta/destructive
+          echo '<?xml version="1.0" encoding="UTF-8"?>' > delta/destructive/package.xml
+          echo '<Package xmlns="http://soap.sforce.com/2006/04/metadata">' >> delta/destructive/package.xml
+          echo "  <version>${{ env.API_VERSION }}</version>" >> delta/destructive/package.xml
+          echo '</Package>' >> delta/destructive/package.xml
+          cp delta/destructiveChanges.xml delta/destructive/destructiveChanges.xml
+          sf project deploy start \
+            --manifest delta/destructive/package.xml \
+            --destructive-changes delta/destructive/destructiveChanges.xml \
+            --target-org ${{ env.ORG_ALIAS }} \
+            --wait 10 \
+            --verbose || echo "⚠️ Destructive deployment skipped due to error."
+        else
+          echo "🚫 No destructive changes found. Skipping."
         fi
-        echo "### 🔬 Delta Deployment Summary" >> $GITHUB_STEP_SUMMARY
-        echo "- Target Environment: QA" >> $GITHUB_STEP_SUMMARY
-        echo "- Base Branch Used: origin/QA_Branch" >> $GITHUB_STEP_SUMMARY
-        echo "- Run ID: ${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
-        echo "- Timestamp: $(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_STEP_SUMMARY
-        echo "- Metadata Components Deployed:" >> $GITHUB_STEP_SUMMARY
-        grep "<name>" "$PACKAGE_XML" | sed 's/ *<[^>]*>//g' | sort | uniq >> $GITHUB_STEP_SUMMARY 
 
-    - name: 🧹 Final Cleanup of Delta Folder
-      run: |
-        rm -rf delta
-        echo "✅ Delta folder cleaned up."
+    - name: 💾 Save Last Deploy SHA
+      run: git rev-parse HEAD > .last-deploy-sha
+
+    - name: 📤 Upload Last Deploy SHA
+      uses: actions/upload-artifact@v4
+      with:
+        name: last-deploy-sha-QA_Branch
+        path: .last-deploy-sha
+
+    - name: 📝 Write Deployment Summary
+      run: bash CIScripts/write-summary.sh
+
+    - name: 🧹 Cleanup Destructive Metadata
+      run: rm -rf delta/destructive
 
   manual-deploy:
     if: github.event_name == 'workflow_dispatch'
@@ -147,6 +175,9 @@ jobs:
       image: vlenergy/salesforcevlocity:v4.0
     env:
       ENVIRONMENT: ${{ inputs.environment }}
+      ORG_ALIAS: target-org
+      FALLBACK_DEPTH: 10
+      PACKAGE_XML: delta/package/package.xml
 
     steps:
     - name: ⬇️ Checkout Code
@@ -167,18 +198,28 @@ jobs:
           echo "❌ Unknown environment. Aborting."
           exit 1
         fi
-        sf org login sfdx-url --sfdx-url-file auth-url.txt --alias target-org --set-default
+        sf org login sfdx-url --sfdx-url-file auth-url.txt --alias $ORG_ALIAS --set-default
+
+    - name: 📥 Download Previous Deploy SHA (if available)
+      uses: actions/download-artifact@v4
+      with:
+        name: last-deploy-sha-${{ inputs.environment }}
+        path: temp-sha
+      continue-on-error: true
 
     - name: 🔍 Generate Delta Package
       run: bash CIScripts/generate-delta.sh
+      env:
+        ENVIRONMENT: ${{ inputs.environment }}
+        FALLBACK_DEPTH: ${{ env.FALLBACK_DEPTH }}
 
     - name: 📦 Backup Delta from Org
-      run: |
-        export BACKUP_DIR="deltabackup-${{ github.run_id }}-${{ github.run_number }}"
-        mkdir -p "$BACKUP_DIR"
-        bash CIScripts/backup-delta.sh
+      run: bash CIScripts/backup-delta.sh
+      env:
+        BACKUP_DIR: "deltabackup-${{ github.run_id }}-${{ github.run_number }}"
+        ORG_ALIAS: ${{ env.ORG_ALIAS }}
 
-    - name: 🗂️ Upload delta backup artifact
+    - name: 🗂️ Upload Delta Backup Artifact
       uses: actions/upload-artifact@v4
       with:
         name: delta-backup-${{ inputs.environment }}-${{ github.run_id }}-${{ github.run_number }}
@@ -188,7 +229,7 @@ jobs:
       run: |
         sf project deploy validate \
           --source-dir delta/package \
-          --target-org target-org \
+          --target-org $ORG_ALIAS \
           --test-level RunSpecifiedTests \
           --tests "AttachmentTriggerHandler_Test" \
           --wait 10 \
@@ -197,29 +238,45 @@ jobs:
     - name: 🚀 Deploy Delta to Org
       run: |
         sf project deploy start \
-          --ignore-conflicts \
           --source-dir delta/package \
-          --target-org target-org \
+          --ignore-conflicts \
+          --target-org $ORG_ALIAS \
           --test-level RunSpecifiedTests \
           --tests "AttachmentTriggerHandler_Test" \
           --wait 10 \
           --verbose || { echo "❌ Deployment failed."; exit 1; }
 
-    - name: 📝 Summarize Deployment
+    - name: 🔥 Deploy Destructive Changes to Org (if any)
       run: |
-        if [[ -z "$GITHUB_STEP_SUMMARY" ]]; then
-          echo "⚠️ GITHUB_STEP_SUMMARY not set. Skipping summary output."
-          exit 0
+        if [[ -s "delta/destructiveChanges.xml" ]]; then
+          echo "✅ Destructive changes found. Deploying..."
+          mkdir -p delta/destructive
+          echo '<?xml version="1.0" encoding="UTF-8"?>' > delta/destructive/package.xml
+          echo '<Package xmlns="http://soap.sforce.com/2006/04/metadata">' >> delta/destructive/package.xml
+          echo "  <version>${{ env.API_VERSION }}</version>" >> delta/destructive/package.xml
+          echo '</Package>' >> delta/destructive/package.xml
+          cp delta/destructiveChanges.xml delta/destructive/destructiveChanges.xml
+          sf project deploy start \
+            --manifest delta/destructive/package.xml \
+            --destructive-changes delta/destructive/destructiveChanges.xml \
+            --target-org $ORG_ALIAS \
+            --wait 10 \
+            --verbose || echo "⚠️ Destructive deployment skipped due to error."
+        else
+          echo "🚫 No destructive changes detected. Skipping destructive deploy."
         fi
-        echo "### 🚀 Delta Deployment Summary" >> $GITHUB_STEP_SUMMARY
-        echo "- Target Environment: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
-        echo "- Base Branch Used: origin/${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
-        echo "- Run ID: ${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
-        echo "- Timestamp: $(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_STEP_SUMMARY
-        echo "- Metadata Components Deployed:" >> $GITHUB_STEP_SUMMARY
-        grep "<name>" "$PACKAGE_XML" | sed 's/ *<[^>]*>//g' | sort | uniq >> $GITHUB_STEP_SUMMARY
 
-    - name: 🧹 Final Cleanup of Delta Folder
-      run: |
-        rm -rf delta
-        echo "✅ Delta folder cleaned up."
+    - name: 💾 Save Last Deploy SHA
+      run: git rev-parse HEAD > .last-deploy-sha
+
+    - name: 📤 Upload Last Deploy SHA
+      uses: actions/upload-artifact@v4
+      with:
+        name: last-deploy-sha-${{ inputs.environment }}
+        path: .last-deploy-sha
+
+    - name: 📝 Write Deployment Summary
+      run: bash CIScripts/write-summary.sh
+
+    - name: 🧹 Cleanup Destructive Metadata
+      run: rm -rf delta/destructive
