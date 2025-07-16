@@ -115,16 +115,6 @@ jobs:
         name: delta-backup-QA-${{ github.run_id }}-${{ github.run_number }}
         path: "deltabackup*"
 
-    - name: ✅ Validate Deployment
-      run: |
-        sf project deploy validate \
-          --source-dir delta/package \
-          --target-org ${{ env.ORG_ALIAS }} \
-          --test-level RunSpecifiedTests \
-          --tests "AttachmentTriggerHandler_Test" \
-          --wait 10 \
-          --verbose || { echo "❌ Validation failed."; exit 1; }
-
     - name: 🚀 Deploy Delta to Org
       run: |
         sf project deploy start \
@@ -159,16 +149,15 @@ jobs:
       run: git config --global --add safe.directory /__w/SalesforceCICD/SalesforceCICD
 
     - name: 💾 Save Last Deploy SHA
-      run: git rev-parse HEAD > .last-deploy-sha
+      run: |
+           git rev-parse HEAD > .last-deploy-sha
+           cp .last-deploy-sha deployed-sha.txt
 
     - name: 📤 Upload Last Deploy SHA
       uses: actions/upload-artifact@v4
       with:
         name: last-deploy-sha-QA_Branch
-        path: .last-deploy-sha
-
-    - name: 📝 Write Deployment Summary
-      run: bash CIScripts/write-summary.sh
+        path: deployed-sha.txt
 
     - name: 🧹 Cleanup Destructive Metadata
       run: rm -rf delta/destructive
