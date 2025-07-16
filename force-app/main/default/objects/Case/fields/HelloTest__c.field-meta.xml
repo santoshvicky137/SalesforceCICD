@@ -3,7 +3,7 @@
     <fullName>HelloTest__c</fullName>
     <encryptionScheme>None</encryptionScheme>
     <externalId>false</externalId>
-    <label>HelloTest</label>
+    <label>HelloTests</label>
     <length>220</length>
     <required>false</required>
     <trackFeedHistory>false</trackFeedHistory>
