@@ -13,7 +13,6 @@ on:
     - 'sfo/**'
     - 'Sfo/**'
     - QA_Branch
-    - qa_branch
   workflow_dispatch:
     inputs:
       environment:
@@ -26,13 +25,16 @@ on:
 
 env:
   API_VERSION: '63.0'
+  PACKAGE_XML: 'delta/package/package.xml'
 
 jobs:
   feature-validate:
-    if: startsWith(github.ref_name, 'feature/') || startsWith(github.ref_name, 'Feature/') || startsWith(github.ref_name, 'FEATURE/') || startsWith(github.ref_name, 'SMGR-') || startsWith(github.ref_name, 'smgr-') || startsWith(github.ref_name, 'Smgr-') || startsWith(github.ref_name, 'SFO/') || startsWith(github.ref_name, 'sfo/') || startsWith(github.ref_name, 'Sfo/')
+    if: startsWith(github.ref_name, 'feature/') || startsWith(github.ref_name, 'SMGR-') || startsWith(github.ref_name, 'SFO/')
     runs-on: ubuntu-latest
     container:
       image: vlenergy/salesforcevlocity:v4.0
+    env:
+      ENVIRONMENT: QA
 
     steps:
     - name: ⬇️ Checkout Code
@@ -66,6 +68,8 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: vlenergy/salesforcevlocity:v4.0
+    env:
+      ENVIRONMENT: QA
 
     steps:
     - name: ⬇️ Checkout Code
@@ -94,7 +98,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: delta-backup-QA-${{ github.run_id }}-${{ github.run_number }}
-        path: deltabackup*
+        path: "deltabackup*"
 
     - name: ✅ Validate Deployment
       run: |
@@ -116,14 +120,21 @@ jobs:
           --tests "AttachmentTriggerHandler_Test" \
           --wait 10 \
           --verbose || { echo "❌ Deployment failed."; exit 1; }
+
     - name: 📝 Summarize Deployment
       run: |
-        echo "### Deployment Summary" >> $GITHUB_STEP_SUMMARY
-        echo "- Target Environment: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+        if [[ -z "$GITHUB_STEP_SUMMARY" ]]; then
+          echo "⚠️ GITHUB_STEP_SUMMARY not set. Skipping summary output."
+          exit 0
+        fi
+        echo "### 🔬 Delta Deployment Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- Target Environment: QA" >> $GITHUB_STEP_SUMMARY
+        echo "- Base Branch Used: origin/QA_Branch" >> $GITHUB_STEP_SUMMARY
         echo "- Run ID: ${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
         echo "- Timestamp: $(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_STEP_SUMMARY
         echo "- Metadata Components Deployed:" >> $GITHUB_STEP_SUMMARY
         grep "<name>" "$PACKAGE_XML" | sed 's/ *<[^>]*>//g' | sort | uniq >> $GITHUB_STEP_SUMMARY 
+
     - name: 🧹 Final Cleanup of Delta Folder
       run: |
         rm -rf delta
@@ -134,6 +145,8 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: vlenergy/salesforcevlocity:v4.0
+    env:
+      ENVIRONMENT: ${{ inputs.environment }}
 
     steps:
     - name: ⬇️ Checkout Code
@@ -145,7 +158,6 @@ jobs:
       run: chmod +x CIScripts/*.sh
 
     - name: 🔐 Authenticate to Salesforce Org
-      shell: bash
       run: |
         if [[ "${{ inputs.environment }}" == "UAT_Branch" ]]; then
           echo "${{ secrets.SFDX_AUTH_URL_UAT }}" > auth-url.txt
@@ -155,7 +167,6 @@ jobs:
           echo "❌ Unknown environment. Aborting."
           exit 1
         fi
-
         sf org login sfdx-url --sfdx-url-file auth-url.txt --alias target-org --set-default
 
     - name: 🔍 Generate Delta Package
@@ -171,7 +182,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: delta-backup-${{ inputs.environment }}-${{ github.run_id }}-${{ github.run_number }}
-        path: deltabackup*
+        path: "deltabackup*"
 
     - name: ✅ Validate Deployment
       run: |
@@ -196,12 +207,17 @@ jobs:
 
     - name: 📝 Summarize Deployment
       run: |
-        echo "### Deployment Summary" >> $GITHUB_STEP_SUMMARY
+        if [[ -z "$GITHUB_STEP_SUMMARY" ]]; then
+          echo "⚠️ GITHUB_STEP_SUMMARY not set. Skipping summary output."
+          exit 0
+        fi
+        echo "### 🚀 Delta Deployment Summary" >> $GITHUB_STEP_SUMMARY
         echo "- Target Environment: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Base Branch Used: origin/${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
         echo "- Run ID: ${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
         echo "- Timestamp: $(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_STEP_SUMMARY
         echo "- Metadata Components Deployed:" >> $GITHUB_STEP_SUMMARY
-        grep "<name>" "$PACKAGE_XML" | sed 's/ *<[^>]*>//g' | sort | uniq >> $GITHUB_STEP_SUMMARY      
+        grep "<name>" "$PACKAGE_XML" | sed 's/ *<[^>]*>//g' | sort | uniq >> $GITHUB_STEP_SUMMARY
 
     - name: 🧹 Final Cleanup of Delta Folder
       run: |
