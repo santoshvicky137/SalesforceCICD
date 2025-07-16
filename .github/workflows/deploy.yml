@@ -77,9 +77,6 @@ jobs:
         echo "${{ secrets.SFDX_AUTH_URL_QA }}" > auth-url.txt
         sf org login sfdx-url --sfdx-url-file auth-url.txt --alias target-org --set-default
 
-    - name: 🛡️ Mark Workspace as Safe for Git
-      run: git config --global --add safe.directory ${{ github.workspace }}
-
     - name: ⬇️ Attempt to Download Last Deploy SHA
       id: fetch_sha
       uses: actions/download-artifact@v4
@@ -90,6 +87,7 @@ jobs:
 
     - name: 🧠 Generate Fallback SHA if Artifact Missing
       run: |
+        git config --global --add safe.directory ${{ github.workspace }}
         if [ ! -f temp-sha/.last-deploy-sha ]; then
           echo "ℹ️ No SHA artifact found. Using latest commit SHA from QA_Branch."
           git fetch origin QA_Branch
@@ -198,9 +196,6 @@ jobs:
         fi
         sf org login sfdx-url --sfdx-url-file auth-url.txt --alias $ORG_ALIAS --set-default
 
-    - name: 🛡️ Mark Workspace as Safe for Git
-      run: git config --global --add safe.directory ${{ github.workspace }}
-
     - name: 📥 Attempt to Download Previous Deploy SHA
       uses: actions/download-artifact@v4
       with:
@@ -210,6 +205,7 @@ jobs:
 
     - name: 🧠 Generate Fallback SHA if Artifact Missing
       run: |
+        git config --global --add safe.directory ${{ github.workspace }}
         if [ ! -f temp-sha/.last-deploy-sha ]; then
           echo "ℹ️ SHA artifact not found. Using latest commit from branch: ${{ inputs.environment }}"
           git fetch origin
