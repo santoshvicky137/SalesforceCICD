@@ -136,6 +136,7 @@ jobs:
           --verbose || { echo "❌ Deployment failed."; exit 1; }
 
     - name: 🔥 Deploy Destructive Changes to Org (if any)
+      shell: bash
       run: |
         if [[ -s "delta/destructiveChanges.xml" ]]; then
           echo "✅ Destructive changes found. Deploying..."
