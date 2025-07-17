@@ -27,9 +27,6 @@ esac
 echo "🌍 Environment: $ENVIRONMENT"
 echo "🔗 Base Branch: $BASE_BRANCH"
 
-export GIT_DIR="$(pwd)/.git"
-export GIT_WORK_TREE="$(pwd)"
-
 # === SAFETY CHECK ===
 if ! git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
   echo "❌ Not inside a Git repository. Aborting."
@@ -38,13 +35,15 @@ fi
 
 # === STEP 1: Determine delta range ===
 USE_LAST_SHA=false
-if [[ "$ENVIRONMENT" == "QA" || "$ENVIRONMENT" == "UAT_Branch" || "$ENVIRONMENT" == "PreProd_Branch" ]]; then
-  if [[ -f temp-sha/.last-deploy-sha ]]; then
-    BASE_COMMIT=$(cat temp-sha/.last-deploy-sha)
-    echo "✅ Using previous deploy SHA: $BASE_COMMIT"
+DEPLOY_SHA_FILE="temp-sha/deployed-sha.txt"
+
+if [[ "$ENVIRONMENT" =~ QA|UAT_Branch|PreProd_Branch ]]; then
+  if [[ -s "$DEPLOY_SHA_FILE" ]]; then
+    BASE_COMMIT=$(cat "$DEPLOY_SHA_FILE")
+    echo "✅ Using previous deploy SHA from artifact: $BASE_COMMIT"
     USE_LAST_SHA=true
   else
-    echo "⚠️ No previous deploy SHA found. Fallback to HEAD~${FALLBACK_DEPTH}"
+    echo "⚠️ No valid deploy SHA file found. Fallback to HEAD~${FALLBACK_DEPTH}"
     BASE_COMMIT="HEAD~${FALLBACK_DEPTH}"
   fi
 else
@@ -91,7 +90,6 @@ echo "📦 Generating package.xml..."
 sf project manifest generate \
   --source-dir "$PACKAGE_DIR" \
   --api-version "$API_VERSION"
-
 mv ./package.xml "$PACKAGE_XML"
 
 # === STEP 6: Build destructiveChanges.xml (only for deploy jobs) ===
