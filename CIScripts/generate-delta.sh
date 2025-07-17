@@ -27,6 +27,9 @@ esac
 echo "🌍 Environment: $ENVIRONMENT"
 echo "🔗 Base Branch: $BASE_BRANCH"
 
+export GIT_DIR="$(pwd)/.git"
+export GIT_WORK_TREE="$(pwd)"
+
 # === SAFETY CHECK ===
 if ! git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
   echo "❌ Not inside a Git repository. Aborting."
